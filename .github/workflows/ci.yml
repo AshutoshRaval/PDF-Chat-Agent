@@ -26,6 +26,7 @@ jobs:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
       APP_HOST: 0.0.0.0
       APP_PORT: 8000
+      TEST_PDF_ID: ci-test-pdf
 
     steps:
       - name: Checkout code
@@ -53,6 +54,14 @@ jobs:
             sleep 3
           done
 
+      - name: Ingest test PDF
+        run: |
+          uv run python -c "
+          from services.ingest import ingest_pdf
+          result = ingest_pdf('tests/fixtures/test.pdf', 'ci-test-pdf', 'test.pdf')
+          print('Ingested:', result)
+          "
+
       - name: Run health tests (no API key needed)
         run: uv run pytest tests/test_chat.py::TestHealth -v
 
@@ -61,7 +70,7 @@ jobs:
 
       - name: Run full test suite (requires ANTHROPIC_API_KEY)
         if: ${{ env.ANTHROPIC_API_KEY != '' }}
-        run: uv run pytest tests/test_chat.py::TestChatBasic -v
+        run: uv run pytest tests/test_chat.py::TestHealth tests/test_chat.py::TestChatBasic tests/test_chat.py::TestGoldenDataset -v
         continue-on-error: true
 
   lint:

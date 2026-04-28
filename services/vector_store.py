@@ -73,6 +73,10 @@ def delete_document(pdf_id: str):
 
 
 def search(query_embedding: list[float], pdf_id: Optional[str] = None, limit: int = 5) -> list[dict]:
+    existing = [c.name for c in client.get_collections().collections]
+    if COLLECTION_NAME not in existing:
+        return []
+
     query_filter = None
     if pdf_id:
         query_filter = Filter(

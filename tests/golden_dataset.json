@@ -6,28 +6,58 @@
     "description": "Basic identity extraction"
   },
   {
+    "question": "What is the person's current employer?",
+    "expected_keywords": ["C3.ai"],
+    "ground_truth": "C3.ai",
+    "description": "Current employer extraction"
+  },
+  {
     "question": "What is the highest educational qualification mentioned?",
     "expected_keywords": ["Master"],
-    "ground_truth": "Master's degree",
+    "ground_truth": "Master of Science in Software Engineering Systems from Northeastern University",
     "description": "Education extraction"
   },
   {
+    "question": "Which university did the person attend for their Master's degree?",
+    "expected_keywords": ["Northeastern"],
+    "ground_truth": "Northeastern University, Boston, MA",
+    "description": "University extraction"
+  },
+  {
     "question": "What programming languages does the person know?",
-    "expected_keywords": ["Python", "JavaScript", "React"],
-    "ground_truth": "Python, JavaScript, React",
+    "expected_keywords": ["Python", "JavaScript"],
+    "ground_truth": "Python, Java (Spring Boot), C# (.NET), JavaScript (ES6+), C++",
     "description": "Skills extraction"
   },
   {
-    "question": "What is the person's email address?",
-    "expected_keywords": ["@"],
-    "ground_truth": "ashutosh.raval@outlook.com",
-    "description": "Contact info extraction"
+    "question": "What cloud platforms and DevOps tools has the person used?",
+    "expected_keywords": ["AWS", "Docker"],
+    "ground_truth": "AWS, Pulumi, Docker, Kubernetes, GitHub Actions, Kafka, Grafana",
+    "description": "Cloud and DevOps skills"
   },
   {
-    "question": "What projects has the person worked on?",
+    "question": "How many years of experience does the person have?",
+    "expected_keywords": ["6"],
+    "ground_truth": "6 years",
+    "description": "Years of experience"
+  },
+  {
+    "question": "What was the person's role at Atos-Syntel?",
+    "expected_keywords": ["Software Engineer"],
+    "ground_truth": "Software Engineer - I, Full-Stack Developer",
+    "description": "Previous role extraction"
+  },
+  {
+    "question": "What personal projects has the person built?",
     "expected_keywords": [],
     "ground_truth": "",
-    "description": "Project listing — checks sources returned, not keywords",
+    "description": "Projects listing — checks sources returned, not keywords",
     "check_sources_only": true
+  },
+  {
+    "question": "What messaging or streaming technology did the person use at C3.ai?",
+    "expected_keywords": ["Kafka"],
+    "ground_truth": "Kafka for real-time distributed event streaming pipelines",
+    "description": "Streaming technology at C3.ai"
   }
 ]
