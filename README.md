@@ -2,6 +2,10 @@
 
 A RAG (Retrieval Augmented Generation) application that lets you upload PDF documents and ask questions about them using Claude AI.
 
+## Demo
+
+https://github.com/user-attachments/assets/demo.mov
+
 ## What it does
 
 - Upload one or more PDF files
