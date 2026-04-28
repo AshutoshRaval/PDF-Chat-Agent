@@ -106,7 +106,13 @@ cd PDF-Chat-Agent
 
 ### Step 4 — Create the environment file
 
-Create a file named `.env` in the project root (same folder as `main.py`):
+Copy the example file and fill in your values:
+
+```bash
+cp .env.example .env
+```
+
+Then open `.env` and replace the placeholder values. The file looks like this:
 
 ```env
 # Vector DB
