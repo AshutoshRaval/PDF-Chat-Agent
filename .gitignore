@@ -1,0 +1,22 @@
+# secrets
+.env
+
+# python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+
+# uploads (user data)
+uploads/
+
+# node
+frontend/node_modules/
+frontend/dist/
+
+# pytest / coverage
+.pytest_cache/
+.coverage
+
+# OS
+.DS_Store

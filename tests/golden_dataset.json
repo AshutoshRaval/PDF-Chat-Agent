@@ -1,0 +1,33 @@
+[
+  {
+    "question": "What is the person's full name?",
+    "expected_keywords": ["Ashutosh", "Raval"],
+    "ground_truth": "Ashutosh Raval",
+    "description": "Basic identity extraction"
+  },
+  {
+    "question": "What is the highest educational qualification mentioned?",
+    "expected_keywords": ["Master"],
+    "ground_truth": "Master's degree",
+    "description": "Education extraction"
+  },
+  {
+    "question": "What programming languages does the person know?",
+    "expected_keywords": ["Python", "JavaScript", "React"],
+    "ground_truth": "Python, JavaScript, React",
+    "description": "Skills extraction"
+  },
+  {
+    "question": "What is the person's email address?",
+    "expected_keywords": ["@"],
+    "ground_truth": "ashutosh.raval@outlook.com",
+    "description": "Contact info extraction"
+  },
+  {
+    "question": "What projects has the person worked on?",
+    "expected_keywords": [],
+    "ground_truth": "",
+    "description": "Project listing — checks sources returned, not keywords",
+    "check_sources_only": true
+  }
+]
