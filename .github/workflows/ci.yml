@@ -65,7 +65,7 @@ jobs:
         run: uv run pytest tests/test_chat.py::TestChatBasic::test_unknown_pdf_id_returns_no_content -v
 
       - name: Run full test suite (requires ANTHROPIC_API_KEY)
-        if: ${{ secrets.ANTHROPIC_API_KEY != '' }}
+        if: ${{ env.ANTHROPIC_API_KEY != '' }}
         run: uv run pytest tests/test_chat.py::TestChatBasic -v
         continue-on-error: true
 
