@@ -41,6 +41,9 @@ def upsert_chunks(chunks: list[str], embeddings: list[list[float]], pdf_id: str,
 
 
 def list_documents() -> list[dict]:
+    existing = [c.name for c in client.get_collections().collections]
+    if COLLECTION_NAME not in existing:
+        return []
     seen = {}
     offset = None
     while True:
