@@ -1,0 +1,298 @@
+PDF CHAT AGENT — PROJECT SUMMARY
+==================================
+
+ONE-LINE DESCRIPTION
+---------------------
+Built a full-stack RAG (Retrieval-Augmented Generation) application that lets users upload PDF documents
+and ask natural language questions, with answers grounded in document content and source attribution.
+
+
+TECH STACK
+-----------
+Frontend        : React + Vite
+Backend         : FastAPI (Python)
+Vector Database : Qdrant
+Background Jobs : Inngest
+Embedding Model : all-MiniLM-L6-v2 (local, via sentence-transformers, 384-dim vectors)
+LLM             : Claude Sonnet (Anthropic API)
+Infrastructure  : Docker, Railway (backend), Vercel (frontend), Qdrant Cloud
+Testing         : pytest, RAGAS
+CI/CD           : GitHub Actions
+
+
+ARCHITECTURE
+-------------
+React (Vercel) --> FastAPI (Railway) --> Qdrant Cloud
+                        |
+                   Inngest Cloud (async background jobs)
+                        |
+               sentence-transformers (local embeddings)
+                        |
+                   Anthropic Claude API
+
+All PDF chunks are stored in a single Qdrant collection, distinguished by a pdf_id payload field.
+The backend is fully stateless — chat history is owned by the frontend and sent with each request.
+
+
+PROJECT STRUCTURE
+------------------
+main.py                        - FastAPI app, all HTTP routes, rate limiting
+services/
+    embeddings.py              - Text to vector conversion (all-MiniLM-L6-v2)
+    ingest.py                  - PDF parse, chunk, embed, store pipeline
+    vector_store.py            - Qdrant read/write operations
+    chat.py                    - RAG query pipeline (retrieval + Claude)
+functions/
+    inngest_functions.py       - Background job definitions
+frontend/
+    src/App.jsx                - Full React UI (multi-tab sessions)
+    vite.config.js             - Vite config + API proxy for local dev
+tests/
+    conftest.py                - pytest fixtures
+    golden_dataset.json        - Known Q&A pairs for evaluation
+    test_chat.py               - pytest test suite (Health, Basic, Golden)
+    eval_ragas.py              - RAGAS quality evaluation script
+.github/workflows/ci.yml       - GitHub Actions CI pipeline
+railway.toml                   - Railway build and start configuration
+
+
+KEY TECHNICAL IMPLEMENTATIONS
+-------------------------------
+
+1. RAG Pipeline (services/chat.py)
+   - Embeds the user question using the same model used during ingestion
+   - Searches Qdrant for top-5 semantically similar chunks, filtered by pdf_id
+   - Builds prompt: last 6 messages of conversation history + retrieved context + current question
+   - Sends to Claude Sonnet with a strict system prompt that prevents hallucination
+   - Returns answer + sources (filename, page_number, similarity score) to the frontend
+   - HISTORY_WINDOW = 6 messages (3 Q&A pairs) as a sliding window to bound token cost
+
+2. PDF Ingestion Pipeline (services/ingest.py)
+   - Uses PyMuPDF (fitz) to parse PDFs page by page — preserving page number per chunk
+   - Splits text using RecursiveCharacterTextSplitter (chunk_size=500, chunk_overlap=50)
+   - Embeds all chunks in a single batched forward pass for efficiency
+   - Stores vectors in Qdrant with metadata: pdf_id, filename, page_number, chunk_index
+   - Page-by-page parsing is a deliberate decision — concatenating the whole PDF first would lose page tracking
+
+3. Async Background Jobs (functions/inngest_functions.py)
+   - Upload endpoint returns instantly (200 OK) — fires a pdf/ingest event to Inngest
+   - Inngest delivers the job via webhook callback to POST /api/inngest
+   - Jobs have automatic retry and step checkpointing — crash-safe ingestion
+   - Inngest dashboard provides visibility into job status and errors
+
+4. Vector Store (services/vector_store.py)
+   - Single Qdrant collection for all PDFs, distinguished by pdf_id payload field
+   - ensure_collection() called before every ingestion — idempotent, safe to call repeatedly
+   - list_documents() and search() guard against missing collection on fresh environments
+   - Supports QDRANT_API_KEY env var for Qdrant Cloud authentication
+   - Uses Distance.COSINE — optimal for normalised sentence embeddings
+   - delete_document() uses Qdrant filter-based delete — removes all chunks for a PDF in one call
+
+5. Multi-Tab Chat Sessions (frontend/src/App.jsx)
+   - Each browser tab is an independent session: { id, name, messages, activePdf, asking, input }
+   - PDF selection is per-tab — different tabs can chat with different documents simultaneously
+   - Chat history sent on every /chat request (last 6 messages) — backend is fully stateless
+   - Polls /documents every 5 seconds to detect when background ingestion completes
+   - e.stopPropagation() on delete button prevents click bubbling to document selection handler
+
+6. Rate Limiting (main.py)
+   - slowapi limits /chat to 10/min and /upload to 5/min per IP address
+   - slowapi requires request: Request as exact parameter name — body renamed to body: ChatRequest
+   - Exceeding limits returns HTTP 429 automatically
+
+7. Topic Guardrail (services/chat.py)
+   - System prompt instructs Claude to reject questions not answerable from the document context
+   - Prevents hallucination on general knowledge, math, coding, or off-topic questions
+   - Claude responds with a fixed rejection message for out-of-scope questions
+
+8. Source Attribution
+   - Each chunk stored with page_number and filename in Qdrant payload
+   - Every /chat response includes sources: [{ text, filename, page_number, score }]
+   - score is cosine similarity (0-1) between query embedding and chunk embedding
+   - Frontend renders source cards below each Claude answer
+
+
+TESTING STRATEGY
+-----------------
+
+pytest Golden Dataset (tests/test_chat.py):
+  TestHealth        - Verifies /health and /documents endpoints are live (no API key needed)
+  TestChatBasic     - Verifies answer shape, sources exist, page numbers present,
+                      unknown pdf_id returns graceful message, history accepted without errors
+  TestGoldenDataset - Parametrised over golden_dataset.json, checks expected_keywords
+                      appear in Claude's answer (case-insensitive)
+
+RAGAS Evaluation (tests/eval_ragas.py):
+  Faithfulness         - Did Claude hallucinate? (1.0 = zero hallucination)
+  Context Precision    - Were the right chunks retrieved and ranked correctly?
+  Factual Correctness  - Do answers match ground truth from golden_dataset.json?
+  Evaluator LLM        - Claude Haiku (cheaper and sufficient for structured scoring)
+  Result               - Faithfulness: 1.000 on test set (zero hallucination)
+
+
+CI/CD PIPELINE (.github/workflows/ci.yml)
+-------------------------------------------
+Trigger: push or pull_request to main
+
+test job:
+  1. Start Qdrant Docker service container
+  2. Wait for Qdrant readiness (curl poll from runner — not inside container)
+  3. Install dependencies via uv sync
+  4. Ingest test PDF directly via ingest_pdf() — bypasses Inngest, uses fixed TEST_PDF_ID
+  5. Run TestHealth (always)
+  6. Run TestChatBasic::test_unknown_pdf_id_returns_no_content (always, no API key)
+  7. Run full TestHealth + TestChatBasic + TestGoldenDataset (only if ANTHROPIC_API_KEY is set)
+
+lint job:
+  - Verifies app imports without errors using a dummy API key
+
+Deployment:
+  - Railway auto-deploys backend on push to main (GitHub integration)
+  - Vercel auto-deploys frontend on push to main (GitHub integration)
+
+
+KEY ENGINEERING DECISIONS
+---------------------------
+
+Decision                          Why
+---------                         ----
+Local embeddings (all-MiniLM)     No cost, no API quota, works offline, fast batch ingestion
+Page-by-page PDF parsing          Preserves page number per chunk for source attribution
+Client-side chat history          Backend stays stateless, no Redis/session store needed
+Inngest over BackgroundTasks      Retries, dashboard visibility, step checkpointing
+Single Qdrant collection          Simpler ops — all PDFs share one collection, filtered by pdf_id
+CPU-only torch on Railway         Full CUDA torch = 6.1GB image, exceeds Railway's 4GB limit
+Guard collection existence        Fresh Qdrant (CI, first run) has no collection — must handle gracefully
+
+
+IMPORTANT CODE SNIPPETS
+------------------------
+
+RAG Query (services/chat.py):
+    query_embedding = embed_text(question)
+    chunks = search(query_embedding, pdf_id=pdf_id, limit=5)
+    context = "\n\n".join([f"[{i+1}] {c['text']}" for i, c in enumerate(chunks)])
+    messages = [{"role": m["role"], "content": m["content"]} for m in history[-HISTORY_WINDOW:]]
+    messages.append({"role": "user", "content": f"Context from document:\n{context}\n\nQuestion: {question}"})
+    response = _client.messages.create(model=MODEL, max_tokens=1024, system=SYSTEM_PROMPT, messages=messages)
+
+Ingest Pipeline (services/ingest.py):
+    pages = parse_pdf_pages(file_path)          # [(page_num, text), ...]
+    for page_num, page_text in pages:
+        page_chunks = _splitter.split_text(page_text)
+        all_chunks.extend(page_chunks)
+        all_page_numbers.extend([page_num] * len(page_chunks))
+    embeddings = embed_chunks(all_chunks)        # single batched forward pass
+    upsert_chunks(all_chunks, embeddings, pdf_id, filename, all_page_numbers)
+
+Qdrant Client with API Key (services/vector_store.py):
+    client = QdrantClient(
+        url=os.getenv("QDRANT_URL", "http://localhost:6333"),
+        api_key=os.getenv("QDRANT_API_KEY"),    # None for local, key for cloud
+    )
+
+Rate Limiting (main.py):
+    @app.post("/chat")
+    @limiter.limit("10/minute")
+    def chat(request: Request, body: ChatRequest):   # 'request' exact name required by slowapi
+        history = [{"role": m.role, "content": m.content} for m in body.history]
+        return answer_question(body.question, pdf_id=body.pdf_id, history=history)
+
+
+NUMBERS WORTH MENTIONING
+--------------------------
+Embedding dimensions     : 384 (all-MiniLM-L6-v2)
+Top-K retrieval          : 5 chunks per query
+History window           : 6 messages (3 Q&A pairs)
+Chunk size               : 500 characters, 50 overlap
+Rate limits              : 10 chat/min, 5 upload/min per IP
+RAGAS Faithfulness score : 1.000 (zero hallucination on test set)
+Railway build time       : ~94 seconds (after CPU-only torch fix)
+Image size               : Under 4GB (down from 6.1GB with full CUDA torch)
+
+
+RESUME BULLET POINTS
+---------------------
+- Designed and built an end-to-end RAG application using FastAPI, Qdrant, and Claude API;
+  PDF ingestion pipeline processes documents into 384-dim semantic vectors with page-level source attribution
+
+- Implemented async background job processing via Inngest with automatic retry and crash-safe
+  step checkpointing, decoupling PDF upload from ingestion for instant user response
+
+- Evaluated system quality using RAGAS metrics (Faithfulness, Context Precision, Factual Correctness)
+  achieving 1.0 faithfulness score on golden dataset — zero hallucination
+
+- Built full CI/CD pipeline using GitHub Actions + Railway + Vercel with automated pytest suite
+  running on every push, including a pre-ingested test PDF fixture for integration coverage
+
+- Reduced Railway Docker image from 6.1GB to under 4GB by switching to CPU-only PyTorch
+  and separating production from development dependencies
+
+- Improved retrieval accuracy by implementing a two-stage pipeline: bi-encoder retrieval (top-10)
+  followed by cross-encoder re-ranking (ms-marco-MiniLM-L-6-v2) to return the most relevant top-5 chunks
+
+- Added LLM-based query expansion before retrieval to improve results for vague or short queries —
+  Claude rewrites the user question into a more specific search query before embedding
+
+
+RETRIEVAL PIPELINE (AFTER IMPROVEMENTS)
+-----------------------------------------
+Before (naive RAG):
+  embed(question) --> search top-5 --> Claude
+
+After (two-stage RAG):
+  expand_query(question) --> embed(expanded) --> search top-10 --> rerank --> top-5 --> Claude
+
+Step 1 — Query Expansion (services/chat.py: _expand_query)
+  - Claude rewrites the raw question into a detailed search query
+  - Helps when user asks vague questions like "tell me about his work" vs "software engineering experience at C3.ai"
+  - One extra LLM call (~100 tokens) before retrieval
+
+Step 2 — Bi-Encoder Retrieval
+  - Embeds the expanded query using all-MiniLM-L6-v2
+  - Retrieves top-10 candidates from Qdrant (RETRIEVE_K=10, up from 5)
+  - Fast — single vector similarity search
+
+Step 3 — Cross-Encoder Re-ranking (services/chat.py: _rerank)
+  - Scores all 10 (question, chunk) pairs using cross-encoder/ms-marco-MiniLM-L-6-v2
+  - Cross-encoders read both texts together — far more accurate than bi-encoder similarity alone
+  - Re-ranks and returns top-5 (RERANK_TOP_K=5)
+  - Slower than bi-encoder but only runs on 10 candidates, not the full collection
+
+Why two stages?
+  - Bi-encoder is fast but scores question and chunk independently (no cross-attention)
+  - Cross-encoder reads both together — catches cases where individual words match but meaning doesn't
+  - The retrieve-then-rerank pattern is standard in production RAG systems (Cohere Rerank, etc.)
+
+
+KNOWN LIMITATIONS / FUTURE ENHANCEMENTS
+-----------------------------------------
+
+1. Fixed chunk size (currently implemented)
+   Status    : 500 chars / 50 overlap — simple and effective for most documents
+   Limitation: Not context-aware — a sentence can be split mid-thought at chunk boundaries
+   Next step : Topic-aware or semantic chunking (e.g. split on paragraph/heading boundaries)
+               Would significantly improve results on long technical documents
+
+2. No authentication / multi-tenancy (currently implemented)
+   Status    : pdf_id is a UUID (non-guessable) — acts as a capability token
+   Limitation: No user concept — anyone with a pdf_id can query that document
+               All PDFs share one Qdrant collection with no user isolation
+   Next step : Add JWT-based auth; store user_id alongside pdf_id in Qdrant payload;
+               filter search() on both pdf_id AND user_id to enforce document ownership
+
+3. Query expansion adds latency (currently implemented)
+   Status    : One extra Claude API call per query (~300-500ms overhead)
+   Limitation: Increases cost and latency for every request
+   Next step : Cache expanded queries for identical questions; or use a smaller/faster model
+               for expansion (Haiku instead of Sonnet)
+
+4. No streaming responses (not implemented)
+   Status    : Claude response returned as a single block
+   Limitation: User waits for full response before seeing anything
+   Next step : Use Anthropic streaming API + Server-Sent Events to stream tokens to the frontend
+
+5. File storage on local disk (partially addressed)
+   Status    : Uploaded PDFs saved to uploads/ on Railway's ephemeral filesystem
+   Limitation: Files lost on redeploy unless a persistent volume is mounted
+   Next step : Move file storage to S3 or Railway persistent volume

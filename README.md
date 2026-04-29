@@ -441,7 +441,43 @@ sequenceDiagram
 |---------|------|---------|--------|
 | `chunk_size` | `services/ingest.py` | `500` | Larger = more context per chunk |
 | `chunk_overlap` | `services/ingest.py` | `50` | Prevents answers being split across chunks |
-| `limit` (top-K) | `services/chat.py` | `5` | How many chunks Claude sees |
+| `RETRIEVE_K` | `services/chat.py` | `10` | Candidates fetched before re-ranking |
+| `RERANK_TOP_K` | `services/chat.py` | `5` | Chunks passed to Claude after re-ranking |
 | `HISTORY_WINDOW` | `services/chat.py` | `6` | Messages kept for follow-up context |
 | Chat rate limit | `main.py` | `10/minute` | Per IP |
 | Upload rate limit | `main.py` | `5/minute` | Per IP |
+
+---
+
+## Retrieval Pipeline
+
+The chat pipeline uses a two-stage retrieve-then-rerank approach:
+
+```
+User question
+    ↓
+Query Expansion (Claude rewrites vague queries into specific search queries)
+    ↓
+Bi-Encoder Retrieval (embed expanded query → Qdrant top-10)
+    ↓
+Cross-Encoder Re-ranking (ms-marco-MiniLM-L-6-v2 scores all 10 pairs)
+    ↓
+Top-5 most relevant chunks → Claude → Answer
+```
+
+**Why two stages?**
+- Bi-encoders are fast but score question and chunk independently
+- Cross-encoders read both texts together (full cross-attention) — significantly more accurate
+- Retrieve more (10) → re-rank → pass fewer (5) to Claude keeps cost and latency bounded
+
+---
+
+## Known Limitations & Future Enhancements
+
+| Area | Current State | Next Step |
+|------|--------------|-----------|
+| Chunk strategy | Fixed 500-char chunks | Semantic/topic-aware chunking for long docs |
+| Authentication | pdf_id UUID as capability token | JWT auth + user_id filter in Qdrant |
+| Query expansion latency | Extra Claude call per query (~400ms) | Use Haiku for expansion or cache results |
+| Response streaming | Full response returned at once | Anthropic streaming API + Server-Sent Events |
+| File storage | Local disk (ephemeral on Railway) | S3 or Railway persistent volume |
