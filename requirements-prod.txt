@@ -1,0 +1,12 @@
+anthropic
+fastapi
+uvicorn
+slowapi
+inngest
+python-dotenv
+python-multipart
+pymupdf
+qdrant-client
+sentence-transformers
+langchain-text-splitters
+httpx
