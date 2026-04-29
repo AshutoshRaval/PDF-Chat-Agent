@@ -10,7 +10,10 @@ load_dotenv()
 COLLECTION_NAME = os.getenv("QDRANT_COLLECTION", "pdf_chunks")
 VECTOR_SIZE = 384  # all-MiniLM-L6-v2 dimensionality
 
-client = QdrantClient(url=os.getenv("QDRANT_URL", "http://localhost:6333"))
+client = QdrantClient(
+    url=os.getenv("QDRANT_URL", "http://localhost:6333"),
+    api_key=os.getenv("QDRANT_API_KEY"),
+)
 
 
 def ensure_collection():
