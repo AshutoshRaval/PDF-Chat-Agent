@@ -316,6 +316,17 @@ RAGAS scores:
 - **Context Precision** — were the right chunks retrieved? (1.0 = perfect)
 - **Factual Correctness** — do answers match ground truths? (1.0 = perfect)
 
+### Benchmark Results
+
+| Metric | Score | Meaning |
+|--------|-------|---------|
+| Faithfulness | **1.000** | Zero hallucination — every claim grounded in retrieved chunks |
+| Context Precision | **0.795** | Right chunks retrieved and ranked correctly |
+| Factual Correctness | **0.702** | Answers match ground truth on golden dataset |
+
+> Evaluated on a 10-question golden dataset using Claude Haiku as the evaluator LLM.
+> Scores measured after adding cross-encoder re-ranking and LLM query expansion to the pipeline.
+
 ---
 
 ## Architecture

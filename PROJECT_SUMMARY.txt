@@ -265,6 +265,153 @@ Why two stages?
   - The retrieve-then-rerank pattern is standard in production RAG systems (Cohere Rerank, etc.)
 
 
+API REFERENCE — REQUEST & RESPONSE EXAMPLES
+--------------------------------------------
+
+1. POST /upload
+   Rate limit : 5 requests/minute per IP
+   Purpose    : Upload a PDF file. Returns instantly — ingestion runs in background via Inngest.
+
+   Request (multipart/form-data):
+     file: <binary PDF file>
+
+   Response 200:
+     {
+       "pdf_id": "2d401852-4f3a-4c1e-9b2f-abc123def456",
+       "filename": "Ashutosh_Raval.pdf",
+       "message": "PDF received, ingestion started"
+     }
+
+   Response 400 (non-PDF file):
+     { "detail": "Only PDF files are accepted" }
+
+   Response 429 (rate limit exceeded):
+     { "error": "Rate limit exceeded: 5 per 1 minute" }
+
+
+2. POST /chat
+   Rate limit : 10 requests/minute per IP
+   Purpose    : Ask a question about an uploaded PDF. Returns Claude's answer + source chunks.
+
+   Request (application/json):
+     {
+       "question": "Where did Ashutosh work before C3.ai?",
+       "pdf_id": "2d401852-4f3a-4c1e-9b2f-abc123def456",
+       "history": [
+         { "role": "user",      "content": "What is this document about?" },
+         { "role": "assistant", "content": "This is a resume for Ashutosh Raval, a software engineer." }
+       ]
+     }
+
+   Fields:
+     question  : required — the user's question
+     pdf_id    : optional — if omitted, searches across ALL uploaded PDFs
+     history   : optional — list of previous messages for multi-turn conversation
+
+   Response 200:
+     {
+       "answer": "Before C3.ai, Ashutosh worked at Atos-Syntel as a Software Engineer from July 2017 to December 2022.",
+       "sources": [
+         {
+           "text": "Atos-Syntel | Software Engineer - I Jul 2017 – Dec 2022 Full-Stack Developer...",
+           "filename": "Ashutosh_Raval.pdf",
+           "page_number": 1,
+           "score": 0.921
+         },
+         {
+           "text": "C3.ai | Software Development Engineer Feb 2025 – Present...",
+           "filename": "Ashutosh_Raval.pdf",
+           "page_number": 1,
+           "score": 0.887
+         }
+       ]
+     }
+
+   Response 200 (no relevant content found):
+     {
+       "answer": "No relevant content found in the document.",
+       "sources": []
+     }
+
+   Response 200 (off-topic question, guardrail triggered):
+     {
+       "answer": "I can only answer questions about the uploaded documents. Please ask something related to the document.",
+       "sources": [...]
+     }
+
+   Response 429 (rate limit exceeded):
+     { "error": "Rate limit exceeded: 10 per 1 minute" }
+
+
+3. GET /documents
+   Purpose : List all ingested PDFs (unique pdf_ids with filenames).
+
+   Response 200:
+     {
+       "documents": [
+         { "pdf_id": "2d401852-4f3a-4c1e-9b2f-abc123def456", "filename": "Ashutosh_Raval.pdf" },
+         { "pdf_id": "9f1bc774-3a2d-4e8f-b1c0-xyz789uvw012", "filename": "job_description.pdf" }
+       ]
+     }
+
+   Response 200 (no PDFs ingested yet):
+     { "documents": [] }
+
+
+4. DELETE /documents/{pdf_id}
+   Purpose : Delete a PDF — removes all its vectors from Qdrant AND the file from disk.
+
+   Request:
+     DELETE /documents/2d401852-4f3a-4c1e-9b2f-abc123def456
+
+   Response 200:
+     { "deleted": "2d401852-4f3a-4c1e-9b2f-abc123def456" }
+
+
+5. GET /health
+   Purpose : Health check — used by Railway to verify the service is running.
+
+   Response 200:
+     { "status": "ok" }
+
+
+6. PUT /api/inngest  (internal — not for direct use)
+   Purpose : Webhook endpoint Inngest calls to deliver background job events.
+             Registered automatically by inngest.fast_api.serve().
+             Not visible in Swagger (/docs) because it bypasses FastAPI's router.
+
+   Event payload delivered by Inngest:
+     {
+       "name": "pdf/ingest",
+       "data": {
+         "file_path": "uploads/2d401852-4f3a-4c1e-9b2f-abc123def456.pdf",
+         "pdf_id":    "2d401852-4f3a-4c1e-9b2f-abc123def456",
+         "filename":  "Ashutosh_Raval.pdf"
+       }
+     }
+
+
+HOW THE RETRIEVAL PIPELINE AFFECTS /chat RESPONSE
+---------------------------------------------------
+The score field in sources reflects the bi-encoder cosine similarity (0-1).
+After re-ranking, the order of sources reflects the cross-encoder ranking, not the original score order.
+The highest-ranked chunk by the cross-encoder appears first in the sources list.
+
+Example flow for: "Where did he study?"
+  Step 1 — Query expansion:
+    Original : "Where did he study?"
+    Expanded : "educational background university degree Master's program attended"
+
+  Step 2 — Bi-encoder retrieval (top-10 from Qdrant using expanded query)
+
+  Step 3 — Cross-encoder re-ranking against original question "Where did he study?"
+    Rank 1: "Northeastern University, Boston, MA. Master of Science..." score: 0.943
+    Rank 2: "...Jan 2023 – Dec 2024 Software Engineering Systems..."  score: 0.891
+    ...
+
+  Step 4 — Top-5 passed to Claude with system prompt
+
+
 KNOWN LIMITATIONS / FUTURE ENHANCEMENTS
 -----------------------------------------
 

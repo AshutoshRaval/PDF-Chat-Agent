@@ -2,62 +2,61 @@
   {
     "question": "What is the person's full name?",
     "expected_keywords": ["Ashutosh", "Raval"],
-    "ground_truth": "Ashutosh Raval",
+    "ground_truth": "The person's full name is Ashutosh Raval.",
     "description": "Basic identity extraction"
   },
   {
     "question": "What is the person's current employer?",
     "expected_keywords": ["C3.ai"],
-    "ground_truth": "C3.ai",
+    "ground_truth": "Ashutosh currently works at C3.ai as a Software Development Engineer, a position he has held since February 2025.",
     "description": "Current employer extraction"
   },
   {
     "question": "What is the highest educational qualification mentioned?",
     "expected_keywords": ["Master"],
-    "ground_truth": "Master of Science in Software Engineering Systems from Northeastern University",
+    "ground_truth": "The highest educational qualification is a Master of Science in Software Engineering Systems from Northeastern University in Boston, MA, completed between January 2023 and December 2024.",
     "description": "Education extraction"
   },
   {
     "question": "Which university did the person attend for their Master's degree?",
     "expected_keywords": ["Northeastern"],
-    "ground_truth": "Northeastern University, Boston, MA",
+    "ground_truth": "Ashutosh attended Northeastern University in Boston, MA for his Master of Science in Software Engineering Systems.",
     "description": "University extraction"
   },
   {
     "question": "What programming languages does the person know?",
     "expected_keywords": ["Python", "JavaScript"],
-    "ground_truth": "Python, Java (Spring Boot), C# (.NET), JavaScript (ES6+), C++",
+    "ground_truth": "Ashutosh knows Python, Java with Spring Boot, C# with .NET, JavaScript ES6+, and C++.",
     "description": "Skills extraction"
   },
   {
     "question": "What cloud platforms and DevOps tools has the person used?",
     "expected_keywords": ["AWS", "Docker"],
-    "ground_truth": "AWS, Pulumi, Docker, Kubernetes, GitHub Actions, Kafka, Grafana",
+    "ground_truth": "Ashutosh has used AWS, Pulumi for Infrastructure as Code, Docker, Kubernetes, GitHub Actions for CI/CD, Kafka, and Grafana.",
     "description": "Cloud and DevOps skills"
   },
   {
     "question": "How many years of experience does the person have?",
     "expected_keywords": ["6"],
-    "ground_truth": "6 years",
+    "ground_truth": "Ashutosh has 6 years of experience building high-performance, distributed, cloud-native web applications.",
     "description": "Years of experience"
   },
   {
     "question": "What was the person's role at Atos-Syntel?",
     "expected_keywords": ["Software Engineer"],
-    "ground_truth": "Software Engineer - I, Full-Stack Developer",
+    "ground_truth": "At Atos-Syntel, Ashutosh was a Software Engineer - I working as a Full-Stack Developer using Spring Boot, React, Python, and MySQL from July 2017 to December 2022.",
     "description": "Previous role extraction"
   },
   {
     "question": "What personal projects has the person built?",
-    "expected_keywords": [],
-    "ground_truth": "",
-    "description": "Projects listing — checks sources returned, not keywords",
-    "check_sources_only": true
+    "expected_keywords": ["Dollar Dashboard"],
+    "ground_truth": "Ashutosh built two personal projects: Dollar Dashboard, a full-stack financial management platform using the MERN stack with OAuth and GraphQL; and a Cloud Infrastructure and Automation project deploying on AWS using Pulumi IaC and GitHub Actions CI/CD with Auto Scaling.",
+    "description": "Projects listing"
   },
   {
     "question": "What messaging or streaming technology did the person use at C3.ai?",
     "expected_keywords": ["Kafka"],
-    "ground_truth": "Kafka for real-time distributed event streaming pipelines",
+    "ground_truth": "At C3.ai, Ashutosh implemented real-time distributed event streaming pipelines using Kafka, publishing domain events from 450 sources across 20 plants to drive near-real-time processing across 3 downstream business applications.",
     "description": "Streaming technology at C3.ai"
   }
 ]
