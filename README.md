@@ -4,7 +4,7 @@ A RAG (Retrieval Augmented Generation) application that lets you upload PDF docu
 
 ## Demo
 
-https://github.com/user-attachments/assets/demo.mov
+[https://github.com/user-attachments/assets/demo.mov](https://drive.google.com/file/d/1JtOAvWP7OumteJvJPzMoMAd9YoboCovF/view?usp=drive_link)
 
 ## What it does
 
