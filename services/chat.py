@@ -5,6 +5,7 @@ from typing import Optional
 from sentence_transformers import CrossEncoder
 from services.embeddings import embed_text
 from services.vector_store import search
+from services.roles import ROLE_PROMPTS
 
 load_dotenv()
 
@@ -14,7 +15,7 @@ MODEL = "claude-sonnet-4-6"
 # Cross-encoder for re-ranking retrieved chunks
 _reranker = CrossEncoder("cross-encoder/ms-marco-MiniLM-L-6-v2")
 
-SYSTEM_PROMPT = (
+_BASE_PROMPT = (
     "You are a document assistant. You answer questions ONLY based on the provided document context. "
     "If the question is unrelated to the document content — such as general knowledge, math, science, "
     "coding concepts, or anything not found in the context — respond with exactly: "
@@ -26,6 +27,16 @@ SYSTEM_PROMPT = (
 HISTORY_WINDOW = 6  # last 6 messages = 3 Q&A pairs
 RETRIEVE_K = 10     # fetch more candidates for re-ranker to score
 RERANK_TOP_K = 5    # return top 5 after re-ranking
+
+
+def _build_system_prompt(user_context: Optional[dict]) -> str:
+    if not user_context:
+        return _BASE_PROMPT
+    role = user_context.get("role", "default")
+    role_instruction = ROLE_PROMPTS.get(role, ROLE_PROMPTS["default"])
+    if not role_instruction:
+        return _BASE_PROMPT
+    return f"{_BASE_PROMPT}\n\n{role_instruction}"
 
 
 def _expand_query(question: str) -> str:
@@ -53,7 +64,7 @@ def _rerank(question: str, chunks: list) -> list:
     return [chunk for _, chunk in ranked[:RERANK_TOP_K]]
 
 
-def answer_question(question: str, pdf_id: Optional[str] = None, history: list = []) -> dict:
+def answer_question(question: str, pdf_id: Optional[str] = None, history: list = [], user_context: Optional[dict] = None) -> dict:
     # Step 1 — expand query for better retrieval on vague/short questions
     expanded_query = _expand_query(question)
 
@@ -78,7 +89,7 @@ def answer_question(question: str, pdf_id: Optional[str] = None, history: list =
     response = _client.messages.create(
         model=MODEL,
         max_tokens=1024,
-        system=SYSTEM_PROMPT,
+        system=_build_system_prompt(user_context),
         messages=messages,
     )
 

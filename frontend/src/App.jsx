@@ -9,12 +9,20 @@ function makeSession(n) {
   return { id: uid(), name: `Chat ${n}`, messages: [], activePdf: null, asking: false, input: "" };
 }
 
+const ROLES = [
+  { value: "procurement_manager", label: "Procurement Manager" },
+  { value: "maintenance_engineer", label: "Maintenance Engineer" },
+  { value: "facility_manager", label: "Facility Manager" },
+  { value: "default", label: "General" },
+];
+
 export default function App() {
   const [documents, setDocuments] = useState([]);
   const [sessions, setSessions] = useState([makeSession(1)]);
   const [activeId, setActiveId] = useState(sessions[0].id);
   const [uploading, setUploading] = useState(false);
   const [dragOver, setDragOver] = useState(false);
+  const [userContext, setUserContext] = useState({ user_id: "user_1", name: "User", role: "default" });
   const messagesEndRef = useRef(null);
   const fileInputRef = useRef(null);
 
@@ -129,7 +137,12 @@ export default function App() {
       const res = await fetch(`${API}/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question, pdf_id: active.activePdf?.pdf_id || null, history }),
+        body: JSON.stringify({
+          question,
+          pdf_id: active.activePdf?.pdf_id || null,
+          history,
+          user_context: userContext.role !== "default" ? userContext : null,
+        }),
       });
       const data = await res.json();
       setSessions((prev) =>
@@ -168,6 +181,18 @@ export default function App() {
     <div className="app">
       <header className="header">
         <h1>PDF Chat Agent</h1>
+        <div className="role-selector">
+          <label htmlFor="role-select">Role:</label>
+          <select
+            id="role-select"
+            value={userContext.role}
+            onChange={(e) => setUserContext((prev) => ({ ...prev, role: e.target.value }))}
+          >
+            {ROLES.map((r) => (
+              <option key={r.value} value={r.value}>{r.label}</option>
+            ))}
+          </select>
+        </div>
       </header>
 
       <div className="main">

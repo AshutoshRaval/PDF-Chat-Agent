@@ -40,10 +40,17 @@ class HistoryMessage(BaseModel):
     content: str
 
 
+class UserContext(BaseModel):
+    user_id: str
+    name: str
+    role: str
+
+
 class ChatRequest(BaseModel):
     question: str
     pdf_id: Optional[str] = None
     history: list[HistoryMessage] = []
+    user_context: Optional[UserContext] = None
 
 
 @app.post("/upload")
@@ -72,7 +79,8 @@ async def upload_pdf(request: Request, file: UploadFile = File(...)):
 @limiter.limit("10/minute")
 def chat(request: Request, body: ChatRequest):
     history = [{"role": m.role, "content": m.content} for m in body.history]
-    return answer_question(body.question, pdf_id=body.pdf_id, history=history)
+    user_context = body.user_context.model_dump() if body.user_context else None
+    return answer_question(body.question, pdf_id=body.pdf_id, history=history, user_context=user_context)
 
 
 @app.get("/documents")

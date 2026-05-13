@@ -22,6 +22,25 @@
   letter-spacing: 0.3px;
 }
 
+.role-selector {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #8b949e;
+}
+
+.role-selector select {
+  background: #21262d;
+  border: 1px solid #30363d;
+  border-radius: 6px;
+  color: #e2e8f0;
+  font-size: 13px;
+  padding: 4px 8px;
+  cursor: pointer;
+}
+
 .main {
   display: flex;
   flex: 1;
